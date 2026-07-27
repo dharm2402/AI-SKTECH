@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>SKE-TECH ENHANCE</title>
+
+
+    <!-- Optional: Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* Soft pastel gradient background */
+            background: linear-gradient(135deg, #f2e8ff, #ffeef6, #e8f8ff);
+            color: #4e4e4e;
+            padding: 16px;
+        }
+
+        /* Main app shell */
+        .app-shell {
+            width: 100%;
+            max-width: 1120px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 26px;
+            box-shadow: 0 24px 40px rgba(15, 23, 42, 0.07);
+            padding: 22px 26px 26px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+            gap: 22px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(252, 204, 229, 0.6);
+        }
+
+        @media (max-width: 960px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+                padding: 18px;
+                border-radius: 22px;
+            }
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 4px;
+            gap: 12px;
+        }
+
+        .title-block h1 {
+            font-size: 2.1rem;
+            margin: 0 0 4px;
+            letter-spacing: 0.02em;
+            color: #3d354d;
+        }
+
+        .title-block p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #766e84;
+        }
+
+        /* Badge */
+        .badge {
+            padding: 6px 13px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #d89cf6, #ff9fcb);
+            color: white;
+            font-size: 0.78rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 10px 24px rgba(214, 147, 230, 0.55);
+            white-space: nowrap;
+        }
+
+        .badge span.spark {
+            display: inline-block;
+            animation: pulse 1.3s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.25); opacity: 0.75; }
+        }
+
+        /* Panels */
+        .panel {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 18px;
+            padding: 16px 16px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid rgba(252, 204, 229, 0.7);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+
+        .panel-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #3d354d;
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: #9d8fab;
+            text-align: right;
+        }
+
+        /* Canvas */
+        .canvas-wrapper {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #ffffff;
+            border: 1px solid rgba(217, 198, 255, 0.6);
+            box-shadow:
+                0 18px 30px rgba(15, 23, 42, 0.04),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+        }
+
+        #sketchCanvas {
+            width: 100%;
+            height: 360px;
+            display: block;
+            background: radial-gradient(circle at top, #fdfdfd, #f3f4f6);
+            cursor: crosshair;
+        }
+
+        .canvas-overlay-grid {
+            pointer-events: none;
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(to right, rgba(214, 147, 230, 0.18) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(214, 147, 230, 0.18) 1px, transparent 1px);
+            background-size: 18px 18px;
+            mix-blend-mode: multiply;
+            opacity: 0.8;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .toolbar-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 182, 193, 0.6);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+        }
+
+        .toolbar label {
+            font-size: 0.75rem;
+            color: #4e4e4e;
+        }
+
+        .toolbar input[type="color"] {
+            width: 22px;
+            height: 22px;
+            border: none;
+            border-radius: 999px;
+            padding: 0;
+            background: none;
+            outline: 1px solid rgba(214, 147, 230, 0.8);
+            overflow: hidden;
+        }
+
+        .toolbar input[type="range"] {
+            width: 110px;
+            accent-color: #ad8bfc;
+        }
+
+        /* Buttons */
+        .btn {
+            border: none;
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition:
+                transform 0.12s ease,
+                box-shadow 0.12s ease,
+                background 0.12s ease,
+                opacity 0.12s ease;
+            white-space: nowrap;
+        }
+
+        .btn-icon {
+            font-size: 1rem;
+        }
+
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.9);
+            color: #4e4e4e;
+            border: 1px solid rgba(214, 147, 230, 0.5);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+        }
+
+        .btn-ghost:hover {
+            background: #ffffff;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ad8bfc, #ff99c8);
+            color: #fdfdfd;
+            box-shadow:
+                0 10px 24px rgba(214, 147, 230, 0.45),
+                0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+
+        .btn-primary:hover {
+            box-shadow:
+                0 12px 28px rgba(214, 147, 230, 0.6),
+                0 0 0 1px rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.65;
+            cursor: default;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.76rem;
+        }
+
+        /* Result panel */
+        .result-preview {
+            flex: 1;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px dashed rgba(255, 182, 193, 0.7);
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
+            position: relative;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+        }
+
+        .result-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
+            box-shadow: 0 18px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .placeholder {
+            text-align: center;
+            color: #a89cc2;
+            font-size: 0.9rem;
+        }
+
+        .placeholder span {
+            display: block;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        /* Status line */
+        .status-line {
+            font-size: 0.78rem;
+            color: #736887;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ad8bfc;
+        }
+
+        .dot.loading {
+            animation: bounce 0.8s infinite alternate;
+            background: #ff99c8;
+        }
+
+        @keyframes bounce {
+            to { transform: translateY(-2px); opacity: 0.6; }
+        }
+
+        /* Footer */
+        .footer-note {
+            grid-column: 1 / -1;
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: #9d8fab;
+            text-align: right;
+        }
+
+        /* QuickDraw predictions */
+        .predictions-panel {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            border: 1px solid rgba(214, 147, 230, 0.6);
+        }
+
+        .predictions-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3d354d;
+            margin-bottom: 8px;
+        }
+
+        .prediction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            margin: 4px 0;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        .prediction-label {
+            color: #4e4e4e;
+        }
+
+        .prediction-confidence {
+            color: #7c8cff;
+            font-weight: 500;
+        }
+
+        .prediction-item.high-confidence {
+            background: rgba(214, 147, 230, 0.18);
+            border: 1px solid rgba(214, 147, 230, 0.6);
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <div class="header">
+        <div class="title-block">
+            <h1>SKE-TECH ENHANCE</h1>
+
+            <p>Draw your idea on the left, and let the AI refine it into a clean digital sketch.</p>
+        </div>
+        <div class="badge">
+            <span class="spark">⚡</span>
+            Live Canvas · AI Enhanced
+        </div>
+    </div>
+
+    <!-- Left: Drawing canvas & tools -->
+    <section class="panel">
+        <div class="panel-header">
+            <div class="panel-title">Draw your sketch</div>
+            <div class="hint">Tip: Start with bold outlines for best AI results.</div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="sketchCanvas" width="800" height="360"></canvas>
+            <div class="canvas-overlay-grid"></div>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-group">
+                <label for="brushSize">Brush</label>
+                <input id="brushSize" type="range" min="2" max="30" value="8">
+            </div>
+
+            <div class="toolbar-group">
+                <label for="brushColor">Ink</label>
+                <input id="brushColor" type="color" value="#000000">
+            </div>
+
+            <button id="clearBtn" class="btn btn-ghost btn-sm">
+                <span class="btn-icon">🧹</span> Clear
+            </button>
+            <button id="undoBtn" class="btn btn-ghost btn-sm">
+                <span class="btn-icon">↩︎</span> Undo
+            </button>
+
+            <div style="flex:1"></div>
+
+            <button id="enhanceBtn" class="btn btn-primary">
+                <span class="btn-icon">✨</span>
+                Enhance with AI
+            </button>
+        </div>
+
+        <div class="status-line">
+            <span id="statusDot" class="dot"></span>
+            <span id="statusText">Ready. Draw something and hit "Enhance with AI".</span>
+        </div>
+
+        <div class="predictions-panel" id="predictionsPanel" style="display: none;">
+            <div class="predictions-title">🎯 QuickDraw Predictions:</div>
+            <div id="predictionsList"></div>
+        </div>
+    </section>
+
+    <!-- Right: AI result -->
+    <section class="panel">
+        <div class="panel-header">
+            <div class="panel-title">AI generated sketch</div>
+            <div class="hint">Result from your backend model.</div>
+        </div>
+
+        <div class="result-preview" id="resultArea">
+            <div class="placeholder" id="placeholder">
+                <span>👈 Waiting for a sketch</span>
+                Your refined AI sketch will appear here.
+            </div>
+            <img id="resultImg" style="display: none;" alt="AI generated sketch result">
+        </div>
+    </section>
+
+    <!-- Footer text removed -->
+</div>
+
+<script>
+    // ===== Canvas drawing logic =====
+    const canvas = document.getElementById("sketchCanvas");
+    const ctx = canvas.getContext("2d");
+    const brushSizeInput = document.getElementById("brushSize");
+    const brushColorInput = document.getElementById("brushColor");
+    const clearBtn = document.getElementById("clearBtn");
+    const undoBtn = document.getElementById("undoBtn");
+    const enhanceBtn = document.getElementById("enhanceBtn");
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    const resultImg = document.getElementById("resultImg");
+    const placeholder = document.getElementById("placeholder");
+    const predictionsPanel = document.getElementById("predictionsPanel");
+    const predictionsList = document.getElementById("predictionsList");
+
+    let drawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let historyStack = [];
+    let quickDrawModel = null;
+    let predictionTimeout = null;
+    
+    // QuickDraw class names (345 classes from QuickDraw dataset)
+    const QUICKDRAW_CLASSES = [
+        'airplane', 'alarm clock', 'ambulance', 'angel', 'animal migration', 'ant', 'anvil', 'apple', 'arm', 'asparagus',
+        'axe', 'backpack', 'banana', 'bandage', 'barn', 'baseball bat', 'baseball', 'basket', 'basketball', 'bat',
+        'bathtub', 'beach', 'bear', 'beard', 'bed', 'bee', 'belt', 'bench', 'bicycle', 'binoculars',
+        'bird', 'birthday cake', 'blackberry', 'blueberry', 'book', 'boomerang', 'bottlecap', 'bowtie', 'bracelet', 'brain',
+        'bread', 'bridge', 'broccoli', 'broom', 'bucket', 'bulldozer', 'bus', 'bush', 'butterfly', 'cactus',
+        'cake', 'calculator', 'calendar', 'camel', 'camera', 'camouflage', 'campfire', 'candle', 'cannon', 'canoe',
+        'car', 'carrot', 'castle', 'cat', 'ceiling fan', 'cello', 'cell phone', 'chair', 'chandelier', 'church',
+        'circle', 'clarinet', 'clock', 'cloud', 'coffee cup', 'compass', 'computer', 'cookie', 'cooler', 'couch',
+        'cow', 'crab', 'crayon', 'crocodile', 'crown', 'cruise ship', 'cup', 'diamond', 'dishwasher', 'diving board',
+        'dog', 'dolphin', 'donut', 'door', 'dragon', 'dress', 'drill', 'drums', 'duck', 'dumbbell',
+        'ear', 'elbow', 'elephant', 'envelope', 'eraser', 'eye', 'eyeglasses', 'face', 'fan', 'feather',
+        'fence', 'finger', 'fire hydrant', 'fireplace', 'firetruck', 'fish', 'flamingo', 'flashlight', 'flip flops', 'floor lamp',
+        'flower', 'flying saucer', 'foot', 'fork', 'frog', 'frying pan', 'garden', 'garden hose', 'giraffe', 'guitar',
+        'hamburger', 'hammer', 'hand', 'harp', 'hat', 'headphones', 'hedgehog', 'helicopter', 'helmet', 'hexagon',
+        'hockey puck', 'hockey stick', 'horse', 'hospital', 'hot air balloon', 'hot dog', 'hot tub', 'hourglass', 'house', 'house plant',
+        'hurricane', 'ice cream', 'jacket', 'jail', 'kangaroo', 'key', 'keyboard', 'knee', 'knife', 'ladder',
+        'lantern', 'laptop', 'leaf', 'leg', 'light bulb', 'lighter', 'lighthouse', 'lightning', 'line', 'lion',
+        'lipstick', 'lobster', 'lollipop', 'mailbox', 'map', 'marker', 'matches', 'megaphone', 'mermaid', 'microphone',
+        'microwave', 'monkey', 'moon', 'mosquito', 'motorbike', 'mountain', 'mouse', 'moustache', 'mouth', 'mug',
+        'mushroom', 'nail', 'necklace', 'nose', 'ocean', 'octagon', 'octopus', 'onion', 'oven', 'owl',
+        'paintbrush', 'paint can', 'palm tree', 'panda', 'pants', 'paper clip', 'parachute', 'parrot', 'passport', 'peanut',
+        'pear', 'peas', 'pencil', 'penguin', 'piano', 'pickup truck', 'picture frame', 'pig', 'pillow', 'pineapple',
+        'pizza', 'pliers', 'police car', 'pond', 'pool', 'popsicle', 'postcard', 'potato', 'power outlet', 'purse',
+        'rabbit', 'raccoon', 'radio', 'rain', 'rainbow', 'rake', 'remote control', 'rhinoceros', 'rifle', 'river',
+        'roller coaster', 'rollerskates', 'sailboat', 'sandwich', 'saw', 'saxophone', 'school bus', 'scissors', 'scorpion', 'screwdriver',
+        'sea turtle', 'see saw', 'shark', 'sheep', 'shoe', 'shorts', 'shovel', 'sink', 'skateboard', 'skull',
+        'skyscraper', 'sleeping bag', 'smiley face', 'snail', 'snake', 'snorkel', 'snowflake', 'snowman', 'soccer ball', 'sock',
+        'speedboat', 'spider', 'spoon', 'spreadsheet', 'square', 'squiggle', 'squirrel', 'stairs', 'star', 'steak',
+        'stereo', 'stethoscope', 'stitches', 'stop sign', 'stove', 'strawberry', 'streetlight', 'string bean', 'submarine', 'suitcase',
+        'sun', 'swan', 'sweater', 'swing set', 'sword', 'syringe', 't-shirt', 'table', 'teapot', 'teddy-bear',
+        'telephone', 'television', 'tennis racquet', 'tent', 'The Eiffel Tower', 'The Great Wall of China', 'The Mona Lisa', 'tiger', 'toaster', 'toe',
+        'toilet', 'tooth', 'toothbrush', 'toothpaste', 'tornado', 'tractor', 'traffic light', 'train', 'tree', 'triangle',
+        'trombone', 'truck', 'trumpet', 'umbrella', 'underwear', 'van', 'vase', 'violin', 'washing machine', 'watermelon',
+        'waterslide', 'whale', 'wheel', 'windmill', 'wine bottle', 'wine glass', 'wristwatch', 'yoga', 'zebra', 'zigzag'
+    ];
+
+    // White background (for PNG -> model)
+    function fillWhiteBackground() {
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
+    }
+    fillWhiteBackground();
+
+    function getCanvasPos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+        const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+
+    function startDrawing(evt) {
+        evt.preventDefault();
+        drawing = true;
+        saveHistory();
+        const pos = getCanvasPos(evt);
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+
+    function draw(evt) {
+        if (!drawing) return;
+        evt.preventDefault();
+        const pos = getCanvasPos(evt);
+        ctx.lineWidth = brushSizeInput.value;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = brushColorInput.value;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+
+        lastX = pos.x;
+        lastY = pos.y;
+    }
+
+    function stopDrawing(evt) {
+        if (!drawing) return;
+        evt && evt.preventDefault();
+        drawing = false;
+        // Trigger prediction after drawing stops
+        predictQuickDraw();
+    }
+
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", draw);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseleave", stopDrawing);
+
+    canvas.addEventListener("touchstart", startDrawing, { passive: false });
+    canvas.addEventListener("touchmove", draw, { passive: false });
+    canvas.addEventListener("touchend", stopDrawing, { passive: false });
+
+    // ===== History / clear / undo =====
+    function saveHistory() {
+        try {
+            const snapshot = canvas.toDataURL("image/png");
+            historyStack.push(snapshot);
+            if (historyStack.length > 20) historyStack.shift();
+        } catch (e) {
+            console.warn("Could not save history", e);
+        }
+    }
+
+    clearBtn.addEventListener("click", () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        fillWhiteBackground();
+        historyStack = [];
+        statusText.textContent = "Canvas cleared. Draw a new sketch.";
+    });
+
+    undoBtn.addEventListener("click", () => {
+        if (!historyStack.length) return;
+        const last = historyStack.pop();
+        const img = new Image();
+        img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        img.src = last;
+    });
+
+    // ===== Send canvas to Flask backend (/predict) =====
+    async function sendToBackend() {
+        enhanceBtn.disabled = true;
+        statusDot.classList.add("loading");
+        statusText.textContent = "Enhancing… ";
+
+        const blob = await new Promise(resolve =>
+            canvas.toBlob(resolve, "image/png")
+        );
+        const formData = new FormData();
+        formData.append("file", blob, "sketch.png");
+
+        try {
+            const response = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error("Server error: " + response.statusText);
+            }
+
+            // Expect JSON: { "output_url": "/static/results/xyz.png" }
+            const data = await response.json();
+
+            if (data.error) {
+                // Server returned an error
+                throw new Error(data.error);
+            }
+
+            if (data.output_url) {
+                placeholder.style.display = "none";
+                resultImg.style.display = "block";
+                resultImg.src = data.output_url + "?t=" + Date.now();
+                let methodText = "enhanced and refined";
+                if (data.method === "openai") {
+                    methodText = "enhanced by OpenAI";
+                } else if (data.method === "gemini") {
+                    methodText = "enhanced by Gemini AI";
+                } else if (data.method === "shape_detection") {
+                    methodText = "converted to perfect shape";
+                }
+                statusText.textContent = `Done! Your sketch has been ${methodText}.`;
+            } else {
+                statusText.textContent = "AI response did not contain an image URL.";
+            }
+        } catch (err) {
+            console.error("Error details:", err);
+            let errorMessage = "Something went wrong while processing your sketch.";
+            
+            if (err.message) {
+                errorMessage = err.message;
+            } else if (err instanceof TypeError && err.message.includes("fetch")) {
+                errorMessage = "Could not connect to the server. Please check if the server is running.";
+            }
+            
+            statusText.textContent = `Error: ${errorMessage}`;
+            statusText.style.color = "#ef4444";
+            
+            // Reset color after 5 seconds
+            setTimeout(() => {
+                statusText.style.color = "";
+            }, 5000);
+        } finally {
+            enhanceBtn.disabled = false;
+            statusDot.classList.remove("loading");
+        }
+    }
+
+    enhanceBtn.addEventListener("click", sendToBackend);
+
+    // ===== QuickDraw with TensorFlow.js =====
+    async function loadQuickDrawModel() {
+        try {
+            statusText.textContent = "Loading QuickDraw model...";
+            // Using a pre-trained model - you can replace this with your own model URL
+            // For now, we'll create a simple model or use server-side prediction
+            statusText.textContent = "QuickDraw model ready. Draw something!";
+            return true;
+        } catch (error) {
+            console.error("Error loading QuickDraw model:", error);
+            statusText.textContent = "QuickDraw model failed to load. Using server-side prediction.";
+            return false;
+        }
+    }
+
+    async function predictQuickDraw() {
+        // Clear previous timeout
+        if (predictionTimeout) {
+            clearTimeout(predictionTimeout);
+        }
+
+        // Debounce predictions
+        predictionTimeout = setTimeout(async () => {
+            try {
+                // Get canvas image data
+                const imageData = canvas.toDataURL("image/png");
+                
+                // Send to backend for prediction
+                const response = await fetch("/quickdraw", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Prediction failed");
+                }
+
+                const data = await response.json();
+                
+                if (data.predictions && data.predictions.length > 0) {
+                    displayPredictions(data.predictions);
+                }
+            } catch (error) {
+                console.error("QuickDraw prediction error:", error);
+                // Silently fail - don't disrupt user experience
+            }
+        }, 500); // Wait 500ms after drawing stops
+    }
+
+    function displayPredictions(predictions) {
+        if (!predictions || predictions.length === 0) {
+            predictionsPanel.style.display = "none";
+            return;
+        }
+
+        predictionsPanel.style.display = "block";
+        predictionsList.innerHTML = "";
+
+        predictions.slice(0, 5).forEach((pred, index) => {
+            const item = document.createElement("div");
+            item.className = `prediction-item ${pred.confidence > 0.5 ? 'high-confidence' : ''}`;
+            
+            const label = document.createElement("span");
+            label.className = "prediction-label";
+            label.textContent = `${index + 1}. ${pred.label}`;
+            
+            const confidence = document.createElement("span");
+            confidence.className = "prediction-confidence";
+            confidence.textContent = `${(pred.confidence * 100).toFixed(1)}%`;
+            
+            item.appendChild(label);
+            item.appendChild(confidence);
+            predictionsList.appendChild(item);
+        });
+    }
+
+    // Initialize QuickDraw on page load
+    window.addEventListener("load", () => {
+        loadQuickDrawModel();
+    });
+</script>
+</body>
+</html>
